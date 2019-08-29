@@ -1,0 +1,76 @@
+--I'm not familiar with putting in package format, so I did not even try.
+--One thing worth noting is that the comultiplication technically could be
+--obtained from the wedgeProduct command, and then take the dual. This messes
+--with the degrees though, so you would have to twist by some cyclic module.
+--In practice it is faster to run comult instead.
+
+--this code computes the comultiplication map
+--wedge^(p+q) F -> wedge^p F ** wedge^q F 
+--with respect to the standard basis orders
+comult = (p,q,F) -> (L={};
+      n=rank F;
+      b1=binomial(n,p)-1;
+      b2=binomial(n,q)-1;
+      b3=binomial(n,p+q)-1;
+      L1=subsets(toList(0..n-1),p);
+      L2=subsets(toList(0..n-1),q);
+	--labels for basis of p+q exterior power:
+      L3=subsets(toList(0..n-1),p+q);
+	--labels for the basis of the tensor product of 
+	--p and q exterior powers:
+      for i from 0 to b1 do (
+		for j from 0 to b2 do (
+		L=L|{(L1_i,L2_j)}; );
+	);
+      M=map(exteriorPower(p,F)**exteriorPower(q,F),exteriorPower(p+q,F),0);
+      Mmut = mutableMatrix M;
+      for k from 0 to b3 do (
+      for l from 0 to (#L)-1 do (
+      	if (set(flatten(L_l))===set((L3)_k)) then (
+		Mmut_(l,k) = (-1)^(numberOfInversions((L_l)_0,(L_l)_1)); 
+	);
+	);
+	);
+M=promote(matrix Mmut, ring(F));
+M=map(exteriorPower(p,F)**exteriorPower(q,F),exteriorPower(p+q,F),M);
+return M;
+)
+
+--this function computes the contraction map
+--sending wedge^r (F*) ** wedge^n (F) -> wedge^(n-r) F;
+--this is needed for the 2nd structure theorem
+contraction = (r,n,F) -> (D=comult(r,n-r,F);
+M=map((ring(F))^1,exteriorPower(r,dual F)**exteriorPower(r,F),matrix{flatten entries id_(exteriorPower(r,F))});
+a=id_(exteriorPower(r,dual(F)))**D;
+b=M**id_(exteriorPower(n-r,F));
+C=b*a;
+return C;
+)
+
+--this next code is a very simple consequence of the
+--comultiplication code; it computes the defect maps
+--of a length 3 complex F
+defects = F -> (K=koszul (F.dd_1);
+--the first defect:
+p1=(K.dd_2)//(F.dd_2);
+D=comult(2,2,F_1);
+q2=(p1**p1)*D;
+--the second defect:
+p2=q2//(F.dd_3**id_(F_2));
+)
+
+--this next code is for the maps guaranteed by the BE second
+--structure theorem. Admittedly, I couldn't get the degrees to
+--work out how I wanted, so I just did "matrix entries (-)" to
+--get rid of the degrees. So, at the moment, the output has 
+--incorrect homological degree.
+be2 = (n,F) -> (G=exteriorPower(rank F_(n-1) , F_(n-1));
+r1=rank (F.dd_n);
+r2=rank (F.dd_(n+1));
+fn=matrix entries F.dd_n;
+a1=(dual bem(n,F));
+C=dual contraction(1,r1,dual (F_(n-1)));
+ap=matrix entries( (a1**id_(F_(n-1)))*C);
+b=transpose (ap//fn);
+return b;
+)
